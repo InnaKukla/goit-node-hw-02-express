@@ -1,8 +1,12 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const gravatar = require("gravatar");
+const fs = require("fs/promises");
 const { User, schemas } = require("../models/user");
-const HttpError = require("../utils/HttpError");
+const { HttpError, resizeAvatar } = require("../utils");
 const { SECRET_KEY } = process.env;
+const path = require("path");
+const avatarsDir = path.join(__dirname, "../", "public", "avatars");
 
 const register = async (req, res, next) => {
   try {
@@ -16,9 +20,12 @@ const register = async (req, res, next) => {
       throw HttpError(409, "Email in use");
     }
     const createHashPassword = await bcrypt.hash(password, 10);
+    const avatarURL = gravatar.url(email);
+
     const newUser = await User.create({
       ...req.body,
       password: createHashPassword,
+      avatarURL,
     });
     res.status(201).json({
       user: {
@@ -55,7 +62,7 @@ const login = async (req, res, next) => {
     const token = jwt.sign(payload, SECRET_KEY, { expiresIn: "23h" });
     await User.findByIdAndUpdate(user._id, { token });
 
-    res.json({
+    res.status(200).json({
       token,
       user: {
         email: user.email,
@@ -115,10 +122,36 @@ const logout = async (req, res, next) => {
   }
 };
 
+const updateAvatar = async (req, res, next) => {
+  try {
+    const { _id } = req.user;
+
+    const { path: tempUpload, originalname } = req.file;
+
+    const filename = `${_id}_${originalname}`;
+
+    const resultUpload = path.join(avatarsDir, filename);
+
+    resizeAvatar(resultUpload);
+
+    await fs.rename(tempUpload, resultUpload);
+    const avatarURL = path.join("avatars", filename);
+
+    await User.findByIdAndUpdate(_id, { avatarURL });
+
+    res.status(200).json({
+      avatarURL,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
   getCurrent,
   updateSubscription,
   logout,
+  updateAvatar,
 };
