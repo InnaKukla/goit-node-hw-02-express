@@ -6,13 +6,7 @@ const HttpError = require("../utils/HttpError");
 
 const listContacts = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20 } = req.params;
-    const skip = (page - 1) * limit;
-    const { _id: owner } = req.user;
-    const result = await Contact.find({ owner }, "-createdAt -updatedAt", {
-      skip,
-      limit,
-    }).populate("owner", "email subscription");
+    const result = await Contact.find();
     res.json(result);
   } catch (error) {
     next(error);
@@ -21,8 +15,8 @@ const listContacts = async (req, res, next) => {
 
 const getContactById = async (req, res, next) => {
   try {
-    const { _id } = req.body;
-    const result = await Contact.findById(_id);
+    const { contactId } = req.params;
+    const result = await Contact.findById(contactId);
     if (!result) {
       throw HttpError(404, "Not found");
     }
@@ -35,12 +29,12 @@ const getContactById = async (req, res, next) => {
 
 const addContact = async (req, res, next) => {
   try {
+    // const { name, email, phone } = req.body;
     const { error } = schemas.addSchema.validate(req.body);
     if (error) {
       throw HttpError(400, "Missing required name field");
     }
-    const { _id: owner } = req.user;
-    const result = await Contact.create({ ...req.body, owner });
+    const result = await Contact.create(req.body);
     res.status(201).json(result);
   } catch (error) {
     next(error);
@@ -49,8 +43,8 @@ const addContact = async (req, res, next) => {
 
 const removeContact = async (req, res, next) => {
   try {
-    const { _id } = req.body;
-    const result = await Contact.findByIdAndDelete(_id);
+    const { contactId } = req.params;
+    const result = await Contact.findByIdAndDelete(contactId);
     if (!result) {
       throw HttpError(404, "Not found");
     }
@@ -68,8 +62,8 @@ const updateContact = async (req, res, next) => {
     if (error) {
       throw HttpError(400, "Missing fields");
     }
-    const { _id } = req.body;
-    const result = await Contact.findByIdAndUpdate(_id, req.body, {
+    const { contactId } = req.params;
+    const result = await Contact.findByIdAndUpdate(contactId, req.body, {
       new: true,
     });
     if (!result) {
@@ -87,8 +81,8 @@ const updateStatusContact = async (req, res, next) => {
     if (error) {
       throw HttpError(400, "Missing field favorite");
     }
-    const { _id } = req.body;
-    const result = await Contact.findByIdAndUpdate(_id, req.body, {
+    const { contactId } = req.params;
+    const result = await Contact.findByIdAndUpdate(contactId, req.body, {
       new: true,
     });
     if (!result) {
